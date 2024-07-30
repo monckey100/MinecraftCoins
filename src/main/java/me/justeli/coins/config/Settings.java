@@ -162,7 +162,7 @@ public final class Settings
                     }
                     else if (configClass == Sound.class)
                     {
-                        configValue = getSound(value, configEntry.value()).orElse(Sound.ITEM_ARMOR_EQUIP_GOLD);
+                        configValue =  value; // getSound(value, configEntry.value()).orElse(configEntry.value()); // Remove default of Sound.ITEM_ARMOR_EQUIP_GOLD
                     }
                     else if (configClass == MessagePosition.class)
                     {
@@ -291,21 +291,6 @@ public final class Settings
         {
             warning("The mob name '" + name + "' in the config at `" + configKey + "` does not exist. Please use a " +
                 "name from: https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/entity/EntityType.html");
-
-            return Optional.empty();
-        }
-    }
-
-    private Optional<Sound> getSound (String name, String configKey)
-    {
-        try
-        {
-            return Optional.of(Sound.valueOf(name.toUpperCase().replace(" ", "_")));
-        }
-        catch (IllegalArgumentException exception)
-        {
-            warning("The sound '" + name + "' in the config at `" + configKey + "` does not exist. Please use a " +
-                "sound from: https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/Sound.html");
 
             return Optional.empty();
         }

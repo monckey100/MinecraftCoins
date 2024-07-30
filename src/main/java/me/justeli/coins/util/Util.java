@@ -144,7 +144,7 @@ public final class Util
         float volume = Config.SOUND_VOLUME;
         float pitch = Config.SOUND_PITCH;
 
-        player.playSound(player.getEyeLocation(), Config.SOUND_NAME, volume == 0? 0.3f : volume, pitch == 0? 0.3f : pitch);
+        player.playSound(player.getEyeLocation(), "mario.mariocoin", volume == 0? 0.3f : volume, pitch == 0? 0.3f : pitch);
     }
 
     public static boolean isDisabledHere (@Nullable World world)
