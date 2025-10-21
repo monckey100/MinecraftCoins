@@ -78,6 +78,7 @@ public class Config
     @ConfigEntry ("mob-multiplier") protected static Map<String, Integer> RAW_MOB_MULTIPLIER = new HashMap<>();
     @ConfigEntry ("block-drops") protected static Map<String, Integer> RAW_BLOCK_DROPS = new HashMap<>();
 
+    @ConfigEntry ("denominations") public static Map<String, Integer> DENOMINATIONS = new HashMap<>();
     public static Map<Material, Integer> BLOCK_DROPS = new HashMap<>();
     public static Map<EntityType, Integer> MOB_MULTIPLIER = new HashMap<>();
     public static DecimalFormat DECIMAL_FORMATTER = new DecimalFormat();

@@ -247,6 +247,7 @@ public final class DropHandler
 
         double increment = 1;
 
+        // keep your looting/fortune increment logic
         if (player != null && Config.ENCHANT_INCREMENT > 0)
         {
             int lootingLevel = player.getInventory().getItemInMainHand().getEnchantmentLevel(enchantment);
@@ -256,25 +257,83 @@ public final class DropHandler
             }
         }
 
+        // If drop each coin, "amount" becomes the number of $1 coins to drop; increment becomes 1
         if (Config.DROP_EACH_COIN)
         {
             amount *= (int) ((Util.getRandomMoneyAmount() + 0.5) * increment);
             increment = 1;
         }
 
+        // player multiplier as before
         if (player != null)
         {
             amount *= (int) Util.getMultiplier(player);
         }
 
-        for (int i = 0; i < amount; i++)
-        {
-            location.getWorld().dropItem(
-                location,
-                this.coins.getCreateCoin().dropped(increment)
-            );
+        // Final total "dollars" to represent with denominations
+        int total = (int) Math.round(amount * increment);
+        if (total <= 0) return;
+
+        // --- Build greedy denomination list from @ConfigEntry map ---
+        // Expecting: denominations: {"1000":401000, "50":400050, "1":4410002}
+        java.util.List<java.util.Map.Entry<Integer,Integer>> denoms = new java.util.ArrayList<>();
+        if (Config.DENOMINATIONS != null && !Config.DENOMINATIONS.isEmpty()) {
+            for (java.util.Map.Entry<String,Integer> e : Config.DENOMINATIONS.entrySet()) {
+                int v;
+                try { v = Integer.parseInt(e.getKey()); } catch (Exception ex) { continue; }
+                if (v > 0) denoms.add(new java.util.AbstractMap.SimpleEntry<>(v, e.getValue() == null ? 0 : e.getValue()));
+            }
+        }
+        if (denoms.isEmpty()) {
+            // sane defaults if config missing
+            denoms.add(new java.util.AbstractMap.SimpleEntry<>(1000, 401000));
+            denoms.add(new java.util.AbstractMap.SimpleEntry<>(50,   400050));
+            denoms.add(new java.util.AbstractMap.SimpleEntry<>(1,    400001));
+        }
+        // Sort DESC by value (greedy)
+        denoms.sort((a,b) -> Integer.compare(b.getKey(), a.getKey()));
+
+        // --- Greedy breakdown & dropping ---
+        for (java.util.Map.Entry<Integer,Integer> d : denoms) {
+            int value = d.getKey();
+            int cmd   = d.getValue();
+            if (value <= 0 || total <= 0) continue;
+
+            int qty = total / value;
+            if (qty <= 0) continue;
+
+            // Drop "qty" stacks of this denomination
+            for (int i = 0; i < qty; i++) {
+                // Build your base coin using existing API, then stamp CMD for the denom
+                org.bukkit.inventory.ItemStack stack = this.coins.getCreateCoin()
+                    .other()
+                    .data(CoinUtil.COINS_WORTH, (double) value) // store the worth if you already do this
+                    .build();
+
+                org.bukkit.inventory.meta.ItemMeta meta = stack.getItemMeta();
+                if (meta != null) {
+                    if (cmd > 0) meta.setCustomModelData(cmd);
+                    stack.setItemMeta(meta);
+                }
+
+                org.bukkit.entity.Item it = location.getWorld().dropItemNaturally(location, stack);
+                it.setPickupDelay(10);
+            }
+
+            total -= qty * value;
+        }
+
+        // Any leftover that doesn't match a denom (shouldn’t happen if 1 exists) → drop as $1s without a CMD
+        while (total-- > 0) {
+            org.bukkit.inventory.ItemStack stack = this.coins.getCreateCoin()
+                .other()
+                .data(CoinUtil.COINS_WORTH, 1D)
+                .build();
+            org.bukkit.entity.Item it = location.getWorld().dropItemNaturally(location, stack);
+            it.setPickupDelay(10);
         }
     }
+
 
     @EventHandler (priority = EventPriority.LOW)
     public void onEntityDamage (EntityDamageByEntityEvent event)

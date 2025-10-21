@@ -60,6 +60,12 @@ public final class MetaBuilder
             new NamespacedKey(this.coins, key), type
         ));
     }
+    public ItemStack getItemStack() {
+    	return this.itemStack;
+    }
+    public ItemMeta getItemMeta() {
+    	return this.itemMeta;
+    }
 
     public ItemStack build ()
     {

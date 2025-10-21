@@ -24,7 +24,7 @@ public final class CreateCoin
         String name = Util.formatAmountAndCurrency(worth == 1
             ? Config.WITHDRAWN_COIN_NAME_SINGULAR
             : Config.WITHDRAWN_COIN_NAME_PLURAL, worth);
-
+        // getBaseCoin is BaseCoin <=== YOU PROBABLY WANT TO EDIT THIS SOMEWHERE
         return this.coins.getBaseCoin().withdrawn().data(CoinUtil.COINS_WORTH, worth).name(name).build();
     }
 
