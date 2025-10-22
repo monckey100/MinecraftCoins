@@ -20,6 +20,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
@@ -267,6 +268,9 @@ public final class CoinsCommand
             {
                 radius = 2;
             }
+            if (radius > 4) {
+            	radius = 4;
+            }
 
             if (args.length >= 4)
             {
@@ -342,7 +346,7 @@ public final class CoinsCommand
                 return;
             }
 
-            if (amount.get() < 1 || amount.get() > 1000)
+            if (amount.get() < 1)
             {
                 sender.sendMessage(Message.INVALID_AMOUNT.toString());
                 return;
@@ -494,35 +498,82 @@ public final class CoinsCommand
         }
     }
 
-    public void dropCoins (final Location location, final int radius, final int amount)
-    {
+    public void dropCoins(final Location location, final int radius, final int amount) {
+        if (location == null || location.getWorld() == null || amount <= 0) return;
+
         final Coins coins = this.coins;
         final Location dropLocation = location.clone().add(0.0, 0.5, 0.0);
-        final ItemStack coin = coins.getCreateCoin().dropped();
 
-        AtomicInteger ticks = new AtomicInteger();
-        new BukkitRunnable()
-        {
-            @Override
-            public void run ()
-            {
-                Item item = dropLocation.getWorld().dropItem(
-                    dropLocation,
-                    coins.meta(coin).data(CoinUtil.COINS_RANDOM, RANDOM.nextDouble()).build()
-                );
-
-                item.setPickupDelay(30);
-                item.setVelocity(new Vector(
-                    (RANDOM.nextDouble() - 0.5) * radius / 10,
-                    RANDOM.nextDouble() * radius / 5,
-                    (RANDOM.nextDouble() - 0.5) * radius / 10
-                ));
-
-                if (ticks.addAndGet(1) >= amount)
-                {
-                    this.cancel();
-                }
+        // Build & sort denominations from config: "value" -> cmd
+        final java.util.List<java.util.Map.Entry<Integer,Integer>> denoms = new java.util.ArrayList<>();
+        if (Config.DENOMINATIONS != null && !Config.DENOMINATIONS.isEmpty()) {
+            for (java.util.Map.Entry<String,Integer> e : Config.DENOMINATIONS.entrySet()) {
+                try {
+                    int v = Integer.parseInt(e.getKey().trim());
+                    if (v > 0) denoms.add(new java.util.AbstractMap.SimpleEntry<>(v, e.getValue() == null ? 0 : e.getValue()));
+                } catch (NumberFormatException ignored) {}
             }
-        }.runTaskTimer(this.coins, 0, 1);
+        }
+        if (denoms.isEmpty()) {
+            // safe defaults if config missing
+            denoms.add(new java.util.AbstractMap.SimpleEntry<>(1000, 4410016));
+            denoms.add(new java.util.AbstractMap.SimpleEntry<>(50,   4410015));
+            denoms.add(new java.util.AbstractMap.SimpleEntry<>(1,    4410002));
+        }
+        denoms.sort((a,b) -> Integer.compare(b.getKey(), a.getKey())); // DESC for greedy
+
+        // Build exact queue: amount is TOTAL VALUE to represent
+        final java.util.List<ItemStack> queue = new java.util.ArrayList<>();
+        int left = amount;
+
+        for (var d : denoms) {
+            if (left <= 0) break;
+
+            final int value = d.getKey();
+            final int cmd   = d.getValue() == null ? 0 : d.getValue();
+            if (value <= 0) continue;
+
+            final int qty = left / value;   // integer division
+            if (qty == 0) continue;
+
+            left %= value;                  // integer remainder
+
+            for (int i = 0; i < qty; i++) {
+                ItemStack stack = coins.getCreateCoin()
+                    .other() // use dropped() if these should behave like normal dropped coins
+                    .data(CoinUtil.COINS_WORTH, (double) value)
+                    .build();
+
+                ItemMeta meta = stack.getItemMeta();
+                if (meta != null && cmd > 0) {
+                    meta.setCustomModelData(cmd);
+                    stack.setItemMeta(meta);
+                }
+                queue.add(stack.clone()); // keep a carbon copy 
+            }
+        }
+
+        if (queue.isEmpty()) return;
+
+        // Drop one item per tick with your fountain velocity
+        final java.util.concurrent.atomic.AtomicInteger idx = new java.util.concurrent.atomic.AtomicInteger(0);
+        new org.bukkit.scheduler.BukkitRunnable() {
+            @Override public void run() {
+                int i = idx.getAndIncrement();
+                if (i >= queue.size()) { this.cancel(); return; }
+
+                org.bukkit.inventory.ItemStack next = queue.get(i);
+                org.bukkit.entity.Item item = dropLocation.getWorld().dropItem(dropLocation, next);
+                item.setPickupDelay(30);
+                item.setVelocity(new org.bukkit.util.Vector(
+                        (RANDOM.nextDouble() - 0.5) * radius / 10.0,
+                        RANDOM.nextDouble() * radius / 5.0,
+                        (RANDOM.nextDouble() - 0.5) * radius / 10.0
+                ));
+            }
+        }.runTaskTimer(this.coins, 0L, 1L);
     }
+
+
+
 }

@@ -316,7 +316,7 @@ public final class DropHandler
                     stack.setItemMeta(meta);
                 }
 
-                org.bukkit.entity.Item it = location.getWorld().dropItemNaturally(location, stack);
+                org.bukkit.entity.Item it = location.getWorld().dropItemNaturally(location, stack.clone());
                 it.setPickupDelay(10);
             }
 
@@ -329,7 +329,7 @@ public final class DropHandler
                 .other()
                 .data(CoinUtil.COINS_WORTH, 1D)
                 .build();
-            org.bukkit.entity.Item it = location.getWorld().dropItemNaturally(location, stack);
+            org.bukkit.entity.Item it = location.getWorld().dropItemNaturally(location, stack.clone());
             it.setPickupDelay(10);
         }
     }
